@@ -15,7 +15,7 @@ function App() {
         <Card className="mt-8">
           <CardHeader>
             <CardTitle className="text-2xl font-bold text-center">
-              Форма закупки
+              Форма зарядки
             </CardTitle>
             <CardDescription className="text-center">
               Введите данные закупки ниже

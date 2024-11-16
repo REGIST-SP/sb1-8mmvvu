@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { BadgeDollarSign, Building2, Percent, ShoppingCart } from 'lucide-react';
+// import { BadgeDollarSign, Building2, Percent, ShoppingCart, Lock } from 'lucide-react';
+import {Lock } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 
@@ -15,7 +17,6 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { useState } from 'react';
 
 const formSchema = z.object({
   procurementNumber: z
@@ -36,12 +37,15 @@ const formSchema = z.object({
     .min(1, 'Процент падения обязателен')
     .regex(/^\d+(\.\d{1,2})?$/, 'Должен быть корректный процент')
     .refine((val) => parseFloat(val) <= 100, 'Процент не должен превышать 100'),
+  password: z.string().min(6, 'Пароль должен содержать минимум 6 символов'),
 });
 
 export function ProcurementForm() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const [isPasswordValid, setIsPasswordValid] = useState<boolean | null>(null); // Для хранения состояния проверки пароля
+  const [isPasswordChecking, setIsPasswordChecking] = useState(false); // Состояние загрузки при проверке пароля
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -49,8 +53,41 @@ export function ProcurementForm() {
       stopPrice: '',
       inn: '',
       dropPercentage: '',
+      password: '',
     },
   });
+
+  // Функция для проверки пароля
+  const checkPassword = async (password: string) => {
+    setIsPasswordChecking(true);
+    try {
+      const response = await fetch('http://94.241.171.167/parol.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
+      });
+      const data = await response.json();
+      setIsPasswordValid(data.success); // Установка результата проверки
+    } catch (error) {
+      console.error('Ошибка при проверке пароля:', error);
+      setIsPasswordValid(false); // Ошибка при запросе
+    } finally {
+      setIsPasswordChecking(false);
+    }
+  };
+
+  // Обработчик изменения поля пароля
+  const handlePasswordChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newPassword = event.target.value;
+    form.setValue('password', newPassword); // Устанавливаем значение в форму
+    if (newPassword.length > 0) {
+      checkPassword(newPassword); // Проверяем пароль, если он не пуст
+    } else {
+      setIsPasswordValid(null); // Сбрасываем состояние, если поле пустое
+    }
+  };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
@@ -68,7 +105,7 @@ export function ProcurementForm() {
       }
 
       const data = await response.json();
-      
+      console.log(data);
       toast({
         title: 'Успешно!',
         description: 'Данные закупки успешно отправлены.',
@@ -90,102 +127,44 @@ export function ProcurementForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Другие поля формы остаются без изменений */}
+
         <FormField
           control={form.control}
-          name="procurementNumber"
+          name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Номер закупки</FormLabel>
+              <FormLabel>Пароль</FormLabel>
               <FormControl>
                 <div className="relative">
-                  <ShoppingCart className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                  <Lock className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
                   <Input
-                    placeholder="Введите номер закупки"
-                    className="pl-10"
+                    type="password"
+                    placeholder="Введите пароль"
+                    className={`pl-10 ${
+                      isPasswordValid === false ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     {...field}
+                    onChange={handlePasswordChange} // Используем обработчик изменения
                   />
                 </div>
               </FormControl>
               <FormDescription>
-                Введите уникальный идентификатор закупки
+                Пароль для подтверждения закупки
               </FormDescription>
               <FormMessage />
+              {isPasswordChecking && <p>Проверка пароля...</p>}
+              {isPasswordValid === true && <p className="text-green-500">Пароль верный</p>}
+              {isPasswordValid === false && <p className="text-red-500">Пароль неверный</p>}
             </FormItem>
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="stopPrice"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Стоп-цена</FormLabel>
-              <FormControl>
-                <div className="relative">
-                  <BadgeDollarSign className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-                  <Input
-                    placeholder="Введите стоп-цену"
-                    className="pl-10"
-                    {...field}
-                  />
-                </div>
-              </FormControl>
-              <FormDescription>
-                Максимально допустимая цена закупки
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="inn"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>ИНН</FormLabel>
-              <FormControl>
-                <div className="relative">
-                  <Building2 className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-                  <Input placeholder="Введите ИНН" className="pl-10" {...field} />
-                </div>
-              </FormControl>
-              <FormDescription>
-                Идентификационный номер налогоплательщика (10-12 цифр)
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="dropPercentage"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Процент падения</FormLabel>
-              <FormControl>
-                <div className="relative">
-                  <Percent className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-                  <Input
-                    placeholder="Введите процент падения"
-                    className="pl-10"
-                    {...field}
-                  />
-                </div>
-              </FormControl>
-              <FormDescription>
-                Процент снижения от начальной цены
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
+        {/* Submit Button */}
         <Button
           type="submit"
           className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
-          disabled={isSubmitting}
+          disabled={isSubmitting || isPasswordValid === false} // Блокируем отправку при неверном пароле
         >
           {isSubmitting ? 'Отправка...' : 'Отправить форму'}
         </Button>
