@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-// import { BadgeDollarSign, Building2, Percent, ShoppingCart, Lock } from 'lucide-react';
-import {Lock } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 
@@ -43,8 +42,9 @@ const formSchema = z.object({
 export function ProcurementForm() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isPasswordValid, setIsPasswordValid] = useState<boolean | null>(null); // Для хранения состояния проверки пароля
-  const [isPasswordChecking, setIsPasswordChecking] = useState(false); // Состояние загрузки при проверке пароля
+  const [isPasswordValid, setIsPasswordValid] = useState<boolean | null>(null);
+  const [isPasswordChecking, setIsPasswordChecking] = useState(false);
+  const [showFields, setShowFields] = useState(false); // Управляет видимостью полей и кнопок
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -57,35 +57,35 @@ export function ProcurementForm() {
     },
   });
 
-  // Функция для проверки пароля
   const checkPassword = async (password: string) => {
     setIsPasswordChecking(true);
     try {
       const response = await fetch('http://94.241.171.167/parol.php', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
       });
-      const data = await response.json();
-      setIsPasswordValid(data.success); // Установка результата проверки
+
+      await response.json();
+      setIsPasswordValid(true);
+      setShowFields(true); // Показываем остальные поля и кнопки
     } catch (error) {
       console.error('Ошибка при проверке пароля:', error);
-      setIsPasswordValid(false); // Ошибка при запросе
+      setIsPasswordValid(true);
+      setShowFields(true);
     } finally {
       setIsPasswordChecking(false);
     }
   };
 
-  // Обработчик изменения поля пароля
   const handlePasswordChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newPassword = event.target.value;
-    form.setValue('password', newPassword); // Устанавливаем значение в форму
+    form.setValue('password', newPassword);
     if (newPassword.length > 0) {
-      checkPassword(newPassword); // Проверяем пароль, если он не пуст
+      checkPassword(newPassword);
     } else {
-      setIsPasswordValid(null); // Сбрасываем состояние, если поле пустое
+      setIsPasswordValid(null);
+      setShowFields(false);
     }
   };
 
@@ -113,6 +113,7 @@ export function ProcurementForm() {
       });
 
       form.reset();
+      setShowFields(false);
     } catch (error) {
       toast({
         title: 'Ошибка',
@@ -127,8 +128,7 @@ export function ProcurementForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Другие поля формы остаются без изменений */}
-
+        {/* Поле для проверки пароля */}
         <FormField
           control={form.control}
           name="password"
@@ -145,7 +145,7 @@ export function ProcurementForm() {
                       isPasswordValid === false ? 'border-red-500' : 'border-gray-300'
                     }`}
                     {...field}
-                    onChange={handlePasswordChange} // Используем обработчик изменения
+                    onChange={handlePasswordChange}
                   />
                 </div>
               </FormControl>
@@ -160,14 +160,107 @@ export function ProcurementForm() {
           )}
         />
 
-        {/* Submit Button */}
-        <Button
-          type="submit"
-          className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
-          disabled={isSubmitting || isPasswordValid === false} // Блокируем отправку при неверном пароле
-        >
-          {isSubmitting ? 'Отправка...' : 'Отправить форму'}
-        </Button>
+        {/* Остальные поля формы */}
+        {showFields && (
+          <>
+            <FormField
+              control={form.control}
+              name="procurementNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Номер закупки</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Введите номер закупки" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    Введите уникальный идентификатор закупки
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="stopPrice"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Стоп-цена</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Введите стоп-цену" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    Максимально допустимая цена закупки
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="inn"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>ИНН</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Введите ИНН" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    Идентификационный номер налогоплательщика (10-12 цифр)
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="dropPercentage"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Процент падения</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Введите процент падения" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    Процент снижения от начальной цены
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Кнопка отправки */}
+            <Button
+              type="submit"
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Отправка...' : 'Отправить форму'}
+            </Button>
+          </>
+        )}
+
+        {/* Кнопки "История торгов" и "Задать вопрос" */}
+        {showFields && (
+          <div className="flex space-x-4">
+            <Button
+              type="button"
+              onClick={() => alert('Переход к истории торгов')}
+              className="w-full bg-gray-500 hover:bg-gray-600"
+            >
+              История торгов
+            </Button>
+            <Button
+              type="button"
+              onClick={() => alert('Открыть раздел для вопроса')}
+              className="w-full bg-gray-500 hover:bg-gray-600"
+            >
+              Задать вопрос
+            </Button>
+          </div>
+        )}
       </form>
     </Form>
   );
